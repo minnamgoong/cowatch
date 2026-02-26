@@ -69,14 +69,14 @@ DB 없이 GitLab의 Git Tag를 활용하여 브랜치 상태를 관리한다.
 
 ```
 태그 네이밍: cowatch/inactive/{브랜치명}
-예시:        cowatch/inactive/feature-PROJ-123-login
+예시:        cowatch/inactive/CHS2602-12345_1
 ```
 
 ```
 POST /api/v4/projects/:id/repository/tags
   {
-    "tag_name": "cowatch/inactive/feature-PROJ-123-login",
-    "ref":      "feature/PROJ-123-login"
+    "tag_name": "cowatch/inactive/CHS2602-12345_1",
+    "ref":      "CHS2602-12345_1"
   }
 ```
 
@@ -106,7 +106,7 @@ stages:
 deploy:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^feature\//'
+    - if: '$CI_COMMIT_BRANCH =~ /^CHS[0-9]{4}-[0-9]{5}_[0-9]+$/'
   script:
     - deploy-gitlab.sh $CI_COMMIT_REF_NAME
 
@@ -114,7 +114,7 @@ deploy:
 cowatch-conflict-check:
   stage: cowatch
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^CHS[0-9]{4}-[0-9]{5}_[0-9]$/'
+    - if: '$CI_COMMIT_BRANCH =~ /^CHS[0-9]{4}-[0-9]{5}_[0-9]+$/'
   script:
     - cowatch-check.sh $CI_COMMIT_REF_NAME $CI_PROJECT_ID
 
@@ -124,9 +124,8 @@ cowatch-branch-inactive:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
-    # 머지 커밋 메시지에서 소스 브랜치명 추출
-    # 예: "Merge branch 'CHS2602-12345_1' into 'main'"
-    - cowatch-inactive.sh "$CI_COMMIT_TITLE" $CI_PROJECT_ID
+    # 머지된 커밋 SHA를 전달하여 MR API를 통해 소스 브랜치 추출
+    - cowatch-inactive.sh "$CI_COMMIT_SHA" $CI_PROJECT_ID
 
 # [신규] 릴리즈 추적 Job
 cowatch-release-tracker:
@@ -154,16 +153,13 @@ curl -X POST \
 **`cowatch-inactive.sh`**: Jenkins Job 트리거
 ```bash
 #!/bin/bash
-COMMIT_TITLE=$1   # "Merge branch 'feature/PROJ-123' into 'main'"
+COMMIT_SHA=$1
 PROJECT_ID=$2
-
-# 머지 커밋 메시지에서 소스 브랜치명 추출
-SOURCE_BRANCH=$(echo "$COMMIT_TITLE" | sed "s/Merge branch '\\(.*\\)' into.*/\\1/")
 
 curl -X POST \
   "http://jenkins.internal/job/cowatch-branch-inactive/buildWithParameters" \
   --user "jenkins-user:${JENKINS_API_TOKEN}" \
-  --data "SOURCE_BRANCH=${SOURCE_BRANCH}&PROJECT_ID=${PROJECT_ID}"
+  --data "COMMIT_SHA=${COMMIT_SHA}&PROJECT_ID=${PROJECT_ID}"
 ```
 
 **`cowatch-release.sh`**: Jenkins Job 트리거
@@ -203,7 +199,7 @@ curl -X POST \
 # Step 1: 임시 MR 생성
 POST /api/v4/projects/:id/merge_requests
   {
-    "source_branch": "feature/PROJ-123",
+    "source_branch": "CHS2602-12345_1",
     "target_branch": "test",
     "title":         "[cowatch-temp] conflict-check"
   }
@@ -220,8 +216,8 @@ DELETE /api/v4/projects/:id/merge_requests/:iid
 
 | 기능 브랜치 | 확인 대상 브랜치 |
 |---|---|
-| `feature/*` | `test` |
-| `feature/*` | `sanity` |
+| `CHS*` | `test` |
+| `CHS*` | `sanity` |
 
 ---
 
@@ -284,7 +280,7 @@ Git Notify 익스텐션 → 개발자에게 팝업 알림
 | Job 이름 | 트리거 | 파라미터 | 역할 |
 |---|---|---|---|
 | `cowatch-conflict-check` | `cowatch-check.sh` 호출 | `BRANCH_NAME`, `PROJECT_ID` | 충돌 분석 및 알림 |
-| `cowatch-branch-inactive` | `cowatch-inactive.sh` 호출 | `SOURCE_BRANCH`, `PROJECT_ID` | 비활성 Tag 생성 |
+| `cowatch-branch-inactive` | `cowatch-inactive.sh` 호출 | `COMMIT_SHA`, `PROJECT_ID` | 비활성 Tag 생성 |
 | `cowatch-release-tracker` | `cowatch-release.sh` 호출 | `TAG_NAME`, `PROJECT_ID` | 릴리즈 포함 브랜치 추적 |
 
 ---
@@ -307,7 +303,7 @@ diff.commits.each { commit ->
     def mrs = gitlab.getMergeRequestsForCommit(commit.id)
     mrs.each { mr ->
         // 새로운 명명 규칙 패턴 매칭
-        if (mr.source_branch ==~ /CHS[0-9]{4}-[0-9]{5}_[0-9]/) {
+        if (mr.source_branch ==~ /CHS[0-9]{4}-[0-9]{5}_[0-9]+/) {
             releaseBranches << mr.source_branch
         }
     }

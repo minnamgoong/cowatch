@@ -9,9 +9,9 @@ node {
     def gitlabTokenId = "${GITLAB_CREDENTIAL_ID}"
     def projectId = params.PROJECT_ID
     def branchName = params.BRANCH_NAME
-    // [CHSYYMM-NNNNN_N] 패턴 확인
-    if (!(branchName ==~ /CHS[0-9]{4}-[0-9]{5}_[0-9]/)) {
-        echo "Branch ${branchName} does not match the CHSYYMM-NNNNN_N pattern. Skipping."
+    // [CHSYYMM-NNNNN_N+] 패턴 확인
+    if (!(branchName ==~ /CHS[0-9]{4}-[0-9]{5}_[0-9]+/)) {
+        echo "Branch ${branchName} does not match the CHSYYMM-NNNNN_N+ pattern. Skipping."
         return
     }
     def targetBranches = params.CONFLICT_TARGET_BRANCHES.split(',')

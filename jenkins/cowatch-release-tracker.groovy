@@ -1,7 +1,7 @@
 /**
  * CoWatch Release Tracker
  * release?-YYYYMMDDHHMMSS 태그 생성 시 이전 태그와의 변경분(Diff)을 분석하여
- * 이번 릴리즈에 포함된 기능 브랜치(CHSYYMM-NNNNN_N) 목록을 MR API를 통해 역추적합니다.
+ * 이번 릴리즈에 포함된 기능 브랜치(CHSYYMM-NNNNN_N+) 목록을 MR API를 통해 역추적합니다.
  */
 
 node {
@@ -59,7 +59,7 @@ node {
                 def mrs = readJSON text: mrResponse.content
                 
                 mrs.each { mr ->
-                    if (mr.source_branch ==~ /CHS[0-9]{4}-[0-9]{5}_[0-9]/) {
+                    if (mr.source_branch ==~ /CHS[0-9]{4}-[0-9]{5}_[0-9]+/) {
                         releaseBranches << mr.source_branch
                     }
                 }
